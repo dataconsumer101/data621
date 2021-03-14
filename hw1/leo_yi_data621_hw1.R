@@ -22,6 +22,26 @@ names(eval) <- lapply(names(eval), tolower)
 
 summary(train)
 
+
+long_train <- gather(train, metric, value)
+
+# a look at distributions
+ggplot(long_train, aes(x = value)) +
+  geom_density() + 
+  facet_wrap(~metric, scales = 'free')
+
+right_skewed <- c('team_baserun_cs', 'team_baserun_sb', 'team_batting_3b', 'team_fielding_e', 'team_pitching_bb', 'team_pitching_h','team_pitching_so') 
+
+# log scale for right skewed distributions
+filter(long_train, metric %in% right_skewed) %>%
+  ggplot(aes(x = value)) +
+  geom_density() +
+  facet_wrap(~metric, scales = 'free') +
+  scale_x_log10()
+
+
+##### filling in missing values
+
 ### team_batting_so
 
 tbs_avg <- mean(train$team_batting_so, na.rm = T)
@@ -127,69 +147,67 @@ summary(eval)
 
 
 
-# lm1 <- lm(target_wins ~ ., data = train)
-# 
-# summary(lm1)
-# 
-# 
-# lm2 <- lm(target_wins ~ team_fielding_e + team_fielding_dp, data = train)
-# 
-# summary(lm2)
-# 
-# 
-# lm3 <- lm(target_wins ~ . - team_batting_so - team_pitching_so - team_pitching_hr - team_batting_hr, data = train)
-# 
-# summary(lm3)
-# 
-# 
-# lm4 <- lm(target_wins ~ team_batting_h + team_pitching_h + team_pitching_bb + team_fielding_e + team_fielding_dp, data = train)
-# 
-# summary(lm4)
-# 
-# 
-# train$pred1 <- predict(lm1, train)
-# train$pred2 <- predict(lm2, train)
-# train$pred3 <- predict(lm3, train)
-# train$pred4 <- predict(lm4, train)
-# 
-# 
-# 
-# preds <- select(train, target_wins, pred1, pred2, pred3, pred4) %>%
-#   gather('pred', 'val', -target_wins)
-# 
-# ggplot(preds, aes(x = target_wins, y = val, color = pred)) +
-#   geom_point() +
-#   scale_x_continuous(limits = c(0,150)) +
-#   scale_y_continuous(limits = c(0,150)) +
-#   facet_wrap(~pred)
-
-
-
-
-lm1 <- lm(target_wins ~ team_batting_h + team_pitching_h + team_pitching_bb + team_fielding_e + team_fielding_dp, data = train)
+lm1 <- lm(target_wins ~ ., data = train)
 
 summary(lm1)
 
-lm2 <- lm(target_wins ~ team_fielding_e + team_fielding_dp +
+
+lm2 <- lm(target_wins ~ team_fielding_e + team_fielding_dp, data = train)
+
+summary(lm2)
+
+
+lm3 <- lm(target_wins ~ . - team_batting_so - team_pitching_so - team_pitching_hr - team_batting_hr, data = train)
+
+summary(lm3)
+
+
+lm4 <- lm(target_wins ~ team_batting_h + team_pitching_h + team_pitching_bb + team_fielding_e + team_fielding_dp, data = train)
+
+summary(lm4)
+
+
+train$pred1 <- predict(lm1, train)
+train$pred2 <- predict(lm2, train)
+train$pred3 <- predict(lm3, train)
+train$pred4 <- predict(lm4, train)
+
+preds <- select(train, target_wins, pred1, pred2, pred3, pred4) %>%
+  gather('pred', 'val', -target_wins)
+
+ggplot(preds, aes(x = target_wins, y = val)) +
+  geom_point(alpha = .1) +
+  scale_x_continuous(limits = c(0,150)) +
+  scale_y_continuous(limits = c(0,150)) +
+  facet_wrap(~pred)
+
+
+
+
+lm5 <- lm(target_wins ~ team_batting_h + team_pitching_h + team_pitching_bb + team_fielding_e + team_fielding_dp, data = train)
+
+summary(lm5)
+
+lm6 <- lm(target_wins ~ team_fielding_e + team_fielding_dp +
             I(team_batting_h - team_pitching_h) +
             I(team_batting_hr - team_pitching_hr) +
             I(team_pitching_so - team_batting_so) +
             I(team_batting_bb + team_batting_hbp - team_pitching_bb)
           ,data = train)
 
-summary(lm2)
+summary(lm6)
 
-lm3 <- lm(target_wins ~ team_fielding_e + team_fielding_dp +
+lm7 <- lm(target_wins ~ team_fielding_e + team_fielding_dp +
             team_batting_h + team_pitching_h +
             I(team_batting_hr + team_pitching_hr) +
             team_pitching_so + team_batting_so +
             I(team_batting_bb + team_batting_hbp + team_pitching_bb)
           ,data = train)
 
-summary(lm3)
+summary(lm7)
 
-lm4 <- lm(target_wins ~ team_batting_h + team_pitching_h + team_pitching_bb + team_fielding_e + team_fielding_dp, data = train)
+lm8 <- lm(target_wins ~ team_batting_h + team_pitching_h + team_pitching_bb + team_fielding_e + team_fielding_dp, data = train)
 
-summary(lm4)
+summary(lm8)
 
 
