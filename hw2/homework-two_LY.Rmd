@@ -1,0 +1,320 @@
+---
+title: 'HW2: Classification'
+author: "Critical Thinking Group One"
+date: "`r Sys.Date()`" # Due 3/21/2021
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: no
+    theme: cerulean
+    highlight: tango
+    font-family: Arial
+  pdf_document:
+    toc: yes
+---
+
+<style type="text/css">
+
+code {
+  font-family: "Consolas";
+  font-size: 11px;
+}
+
+pre {
+  font-family: "Consolas";
+  font-size: 11px;
+}
+
+</style>
+
+## Authorship
+
+**Critical Thinking Group 1** 
+
+- Angel Claudio
+- Bonnie Cooper
+- Manolis Manoli
+- Magnus Skonberg
+- Christian Thieme
+- Leo Yi
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, warning = F, eval = T) 
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library( caret )
+library( pROC )
+
+options(scipen = 9)
+set.seed(123)
+```
+
+```{r message=FALSE, warning=FALSE}
+classification_df <- readr::read_csv('https://raw.githubusercontent.com/dataconsumer101/data621/main/hw2/classification-output-data.csv')
+
+# a bit easier to work with --
+df <- select(classification_df, class, scored.class, scored.probability)
+```
+
+## Exercises
+
+### 2
+
+Use the table() function to get the raw confusion matrix for this scored dataset. 
+
+```{r}
+# Convert to factors in order to reorder into a confusion matrix
+df$actual <- factor(df$class, levels = c(1,0), labels = c('Diabetes', 'No Diabetes'))
+df$predicted <- factor(df$scored.class, levels = c(1,0), labels = c('Diabetes', 'No Diabetes'))
+
+(c_matrix <- with(df, table(predicted, actual)))
+```
+
+### 3
+
+Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the accuracy of the predictions.
+
+The Accuracy is then given by $\frac{TP + TN}{TP + FP + TN + FN}$ 
+```{r}
+accuracy <- function(df, actual_field, predicted_field) {
+  
+  TP <- sum(df[actual_field] == 1 & df[predicted_field] == 1)
+  TN <- sum(df[actual_field] == 0 & df[predicted_field] == 0)
+  FP <- sum(df[actual_field] == 0 & df[predicted_field] == 1)
+  FN <- sum(df[actual_field] == 1 & df[predicted_field] == 0)
+
+  Acc <- (TP + TN)/(TP + FP + TN + FN)
+  return(Acc)
+}
+
+(a <- accuracy(df, actual_field = 'class', predicted_field = 'scored.class'))
+```
+
+### 4
+
+Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the classification error rate of the predictions.
+
+The Classification Error Rate is given by $\frac{FP + FN}{TP + FP + TN + FN}$ 
+```{r}
+classification_error_rate <- function(df, actual_field, predicted_field) {
+  
+  TP <- sum(df[actual_field] == 1 & df[predicted_field] == 1)
+  TN <- sum(df[actual_field] == 0 & df[predicted_field] == 0)
+  FP <- sum(df[actual_field] == 0 & df[predicted_field] == 1)
+  FN <- sum(df[actual_field] == 1 & df[predicted_field] == 0)
+
+  ClassErr <- (FP + FN)/(TP + FP + TN + FN)
+  return(ClassErr)
+}
+
+(cer <- classification_error_rate(df, actual_field = 'class', predicted_field = 'scored.class'))
+
+# Accuracy + Classification Error Rate check
+a + cer
+```
+
+We can see that .807 + .193 sum to 1 as we would expect
+
+### 5
+
+Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the precision of the predictions.
+
+The Precision is given by $\frac{TP}{TP + FP}$ 
+```{r}
+precision_function <- function(df, actual_field, predicted_field) {
+  
+  TP <- sum(df[actual_field] == 1 & df[predicted_field] == 1)
+  TN <- sum(df[actual_field] == 0 & df[predicted_field] == 0)
+  FP <- sum(df[actual_field] == 0 & df[predicted_field] == 1)
+  FN <- sum(df[actual_field] == 1 & df[predicted_field] == 0)
+
+  Prec <- (TP)/(TP + FP)
+  return(Prec)
+}
+
+precision_function(df, actual_field = 'class', predicted_field = 'scored.class')
+```
+
+### 6
+
+Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the sensitivity of the predictions. Sensitivity is also known as recall.
+
+The Sensitivity is given by $\frac{TP}{TP + FN}$ 
+```{r}
+sensitivity_function <- function(df, actual_field, predicted_field) {
+  
+  TP <- sum(df[actual_field] == 1 & df[predicted_field] == 1)
+  TN <- sum(df[actual_field] == 0 & df[predicted_field] == 0)
+  FP <- sum(df[actual_field] == 0 & df[predicted_field] == 1)
+  FN <- sum(df[actual_field] == 1 & df[predicted_field] == 0)
+
+  Sens <- (TP)/(TP + FN)
+  return(Sens)
+}
+
+sensitivity_function(df, actual_field = 'class', predicted_field = 'scored.class')
+```
+
+### 7
+
+Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the specificity of the predictions.
+
+The Specificity is given by $\frac{TN}{TN + FP}$ 
+```{r}
+specificity_function <- function(df, actual_field, predicted_field) {
+  
+  TP <- sum(df[actual_field] == 1 & df[predicted_field] == 1)
+  TN <- sum(df[actual_field] == 0 & df[predicted_field] == 0)
+  FP <- sum(df[actual_field] == 0 & df[predicted_field] == 1)
+  FN <- sum(df[actual_field] == 1 & df[predicted_field] == 0)
+
+  Speci <- (TN)/(TN + FP)
+  return(Speci)
+}
+
+specificity_function(df, actual_field = 'class', predicted_field = 'scored.class')
+```
+
+### 8
+
+Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the F1 score of the predictions.
+
+```{r echo = T}
+f1_score <- function(df, actual_field, predicted_field) {
+  
+  TP <- sum(df[actual_field] == 1 & df[predicted_field] == 1)
+  TN <- sum(df[actual_field] == 0 & df[predicted_field] == 0)
+  FP <- sum(df[actual_field] == 0 & df[predicted_field] == 1)
+  FN <- sum(df[actual_field] == 1 & df[predicted_field] == 0)
+
+  Prec <- (TP)/(TP + FP)
+  Sens <- (TP)/(TP + FN)
+  f1 <- (2 * Prec * Sens)/(Prec + Sens)
+  return(f1)
+}
+
+f1_score(df, actual_field = 'class', predicted_field = 'scored.class')
+```
+
+### 9
+
+What are the bounds on the F1 score?
+
+Since precision and sensitivity are values between 0 and 1, we can show the upper and lower bounds of F1 where the respective values are .01,.01 and .99,.99:
+
+```{r}
+f1_quick <- function(p, s) {
+  f1 <- (2 * p * s) / (p + s)
+  return(f1)
+}
+
+# lower bound
+# precision = 0.01
+# sensitivity = 0.01
+f1_quick(.01, .01)
+
+# upper bound
+# precision = 0.99
+# sensitivity = 0.99
+f1_quick(.99, .99)
+
+f1_quick(.01,.99)
+f1_quick(.99,.01)
+```
+
+### 10
+
+Write a function that generates an ROC curve from a data set with a true classification column and probability column.
+
+```{r, fig.width=6, fig.height=6}
+# ROC Curve
+thresholds <- seq(0,1,.01)
+
+# FP - Specificity
+x <- NULL
+
+# TP - Sensitivity
+y <- NULL  
+  
+for (i in thresholds) {
+  
+  temp <- df
+  temp$pred <- ifelse(temp$scored.probability >= i, 1, 0)
+  
+  # false positive rate
+  spec <- specificity_function(temp, actual = 'class', predicted = 'pred')
+  x <- append(x, 1 - spec)
+  
+  # true positive rate
+  sens <- sensitivity_function(temp, actual = 'class', predicted = 'pred')
+  y <- append(y, sens)
+  
+  rm(temp, sens, spec)
+}
+
+plot(x, y, type = 'l', xlab = '1 - Specificity', ylab = 'Sensitivity')
+abline(0,1, lty=3)
+```
+
+### 11
+
+Use your **created R functions** and the provided classification output data set to produce all of the classification metrics discussed above
+
+```{r}
+cl_accuracy <- accuracy(df, actual_field = 'class', predicted_field = 'scored.class')
+cl_error_rate <- classification_error_rate(df, actual_field = 'class', predicted_field = 'scored.class')
+cl_precision <- precision_function(df, actual_field = 'class', predicted_field = 'scored.class')
+cl_sensitivity <- sensitivity_function(df, actual_field = 'class', predicted_field = 'scored.class')
+cl_specificity <- specificity_function(df, actual_field = 'class', predicted_field = 'scored.class')
+cl_f1_score <- f1_score(df, actual_field = 'class', predicted_field = 'scored.class')
+
+(output <- data.frame(metric = c('Accuracy', 'Classification Error Rate', 'Precision', 'Sensitivity', 'Specificity', 'F1 Score'),
+           value = c(cl_accuracy, cl_error_rate, cl_precision, cl_sensitivity, cl_specificity, cl_f1_score)))
+```
+
+### 12
+
+Investigate the **caret** package. In particular, consider the functions confusionMatrix, sensitivity, and specificity, Apply the functions to the data set. How do the results compare with your own functions?
+
+```{r}
+confusionMatrix(data = df$predicted,
+                reference = df$actual,
+                positive = 'Diabetes')
+
+# compare caret vs table confusion matrix
+c_matrix
+
+(caret_sensitivity <- sensitivity(data = df$predicted,
+                                 reference = df$actual,
+                                 positive = 'Diabetes')
+)
+# compare caret vs created sensitivity function
+caret_sensitivity == cl_sensitivity
+
+(caret_specificity <- specificity(data = df$predicted,
+                                 reference = df$actual,
+                                 positive = 'Diabetes'))
+
+# compare caret vs created specificity function
+caret_specificity == cl_specificity
+```
+
+### 13
+
+Investigate the **pROC** package. Use it to generate an ROC curve for the data set. How do the results compare with your own functions?
+
+```{r, message = F}
+roc(df$class, df$scored.probability, plot = T, print.auc = T)
+```
+
+```{r, fig.width=4.5}
+# compare to calculated ROC
+plot(x, y, type = 'l', xlab = '1 - Specificity', ylab = 'Sensitivity')
+abline(0,1, lty=3)
+```
+
+<br><br>
